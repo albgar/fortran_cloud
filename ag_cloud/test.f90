@@ -17,7 +17,7 @@ program test
       do j = 1, 3
          data(j, i) = real(i + j)
       enddo
-!!      write (*, *) data(:, i)
+!!      write (6, *) data(:, i)
    enddo
 
    call zeromq_ctx_init_dealer(ctx, 'tcp://127.0.0.1:3445')
@@ -25,11 +25,12 @@ program test
    j = 0
    ! This is the main producer loop
    do
-      write (*, *) "Sending packet for tag: ", j
+      write (6, *) "Sending packet for tag: ", j
       call zeromq_ctx_send(ctx, data, j)
-      write (*, *) " -- done"
+      write (6, *) " -- done"
+      call flush(6)
 
-      ! This could be done by other thread. It is meant
+      ! This is meant
       ! to recover the results from the workers
       ! As it is, the check is done once per outer iteration
       ! I do not understand why we need a loop
@@ -37,14 +38,15 @@ program test
          call zeromq_ctx_try_to_recv(ctx, data, tag, recv)
          
          if (recv > 0) then
-            write (*, *) '====== Received tag:', tag
+            write (6, *) '====== Received tag:', tag
             write(2,*) 'Completed worker task for tag: ', tag
             call flush(2)
          else
-            write (*, *) '... still waiting for results'
+            write (6, *) '... still waiting for results'
             exit
          endif
       enddo
+      call flush(6)
       
       call sleep(1) ! This is the implicit cost of each producer step
       j = j + 1

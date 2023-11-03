@@ -25,7 +25,7 @@ program test_revc
       call flush(1)
 
       data = data + 1.0
-      call sleep(2)
+      call sleep(5)
       write (1, *) '===== worker: done work on tag: ', tag, " ", trim(name)
       call flush(1)
       
