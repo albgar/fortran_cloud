@@ -18,6 +18,7 @@ include(GNUInstallDirs)
     add_library(libzmq::libzmq ALIAS PkgConfig::libzmq)
   else()
     add_subdirectory(libzmq) #Adds library ZEROMQ_LIBRARY
+    add_library(libzmq::libzmq ALIAS ${ZEROMQ_LIBRARY})
   endif()
 
 
@@ -66,6 +67,7 @@ target_include_directories(${PROJECT_NAME}
                            ${CMAKE_CURRENT_BINARY_DIR})
 
 add_subdirectory(workflows/producer-consumer)
+add_subdirectory(workflows/prdcon-packet)
 
 
 ##fortran_modules(${PROJECT_NAME})
