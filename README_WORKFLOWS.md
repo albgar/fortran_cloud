@@ -10,7 +10,11 @@ Riccardo Bertossa](https://github.com/rikigigi/fortran_cloud):
 * ...
 
 
-To install, just type
+To install, instatiate the git submodules:
+
+    git submodule update --init 
+
+and then just type
 
 ```
    cmake -S. -B_build -DCMAKE_INSTALL_PREFIX=/path/to/installation
