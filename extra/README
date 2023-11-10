@@ -5,3 +5,7 @@ on MacOS following the lines of the original recipe by Riccardo Bertossa
 On the Mac the direct compilation of libzmq did not work out of the box due
 to a problem locating or using gnutls, but libzmq itself can be installed
 with Homebrew.
+
+In MN, the Makefile had to use different paths, and the bootstrap.sh deactivated
+the building of docs while using fzmq's own CMake framework (note that we do not
+use it directly now -- perhaps we should).
