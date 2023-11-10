@@ -1,4 +1,7 @@
-# fortran cloud
+# fortran cloud: Documentation and Installation notes by Riccardo Bertossa, SISSA
+
+Further notes on its use for the implementation of general workflows
+by Alberto Garcia [here](./README_WORKFLOWS.md)
 
 fortran module to easy implement a task distributer cloud like network in fortran using zeromq. There is a fixed node (the proxy) and a cloud of workers and work producers that can leave and join the network at any time.
 

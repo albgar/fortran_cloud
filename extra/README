@@ -1,0 +1,7 @@
+The Makefile in this directory shows the incantations needed to build
+on MacOS following the lines of the original recipe by Riccardo Bertossa
+(sh bootstrap.sh, etc).
+
+On the Mac the direct compilation of libzmq did not work out of the box due
+to a problem locating or using gnutls, but libzmq itself can be installed
+with Homebrew.

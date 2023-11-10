@@ -1,5 +1,25 @@
-project(fortran_cloud LANGUAGES C Fortran VERSION 0.8.0 )
-add_subdirectory(libzmq) #Adds library ZEROMQ_LIBRARY
+cmake_minimum_required(VERSION 3.17)
+
+project(fortran_cloud
+        LANGUAGES C Fortran
+	VERSION 0.8.0 )
+
+# Follow GNU conventions for installing directories
+include(GNUInstallDirs)
+
+
+#find_package(libzmq)
+  find_package(PkgConfig REQUIRED QUIET)
+  pkg_check_modules(libzmq IMPORTED_TARGET GLOBAL libzmq)
+  if (libzmq_FOUND)
+    message(STATUS "Found libzmq via pkgconfig")
+    set(ZEROMQ_LIBRARY ${libzmq_LINK_LIBRARIES})
+    message(STATUS "ZEROMQ_LIBRARY: ${libzmq_LINK_LIBRARIES}")
+    add_library(libzmq::libzmq ALIAS PkgConfig::libzmq)
+  else()
+    add_subdirectory(libzmq) #Adds library ZEROMQ_LIBRARY
+  endif()
+
 
 CONFIGURE_FILE(fzmq/src/zmq_constants.c.in zmq_constants.c)
 SET_SOURCE_FILES_PROPERTIES(${CMAKE_CURRENT_BINARY_DIR}/zmq_constants.c GENERATED)
@@ -26,7 +46,7 @@ function(fortran_modules TGT)
                     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}/${TGT}>)
         endif()
     endforeach()
-endfunction(qe_fix_fortran_modules)
+endfunction(fortran_modules)
 
 
 
@@ -38,21 +58,28 @@ set(LIB_SRC
 add_library(${PROJECT_NAME} STATIC ${LIB_SRC})
 target_link_libraries(${PROJECT_NAME}
 	PUBLIC 
-	   ${ZEROMQ_LIBRARY}
+	libzmq::libzmq
         )
 
-fortran_modules(${PROJECT_NAME})
+target_include_directories(${PROJECT_NAME}
+                           INTERFACE
+                           ${CMAKE_CURRENT_BINARY_DIR})
 
-INSTALL(TARGETS ${PROJECT_NAME}
-        EXPORT "${PROJECT_NAME}Targets"
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}	
-	)
+add_subdirectory(workflows/producer-consumer)
 
-install(EXPORT "${PROJECT_NAME}Targets"
-        FILE "${PROJECT_NAME}Targets.cmake"
-        NAMESPACE fortran_cloud::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/fortran_cloud
-)
+
+##fortran_modules(${PROJECT_NAME})
+
+## INSTALL(TARGETS ${PROJECT_NAME}
+##         EXPORT "${PROJECT_NAME}Targets"
+##         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+##         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+##         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+##         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}	
+## 	)
+
+## install(EXPORT "${PROJECT_NAME}Targets"
+##         FILE "${PROJECT_NAME}Targets.cmake"
+##         NAMESPACE fortran_cloud::
+##         DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/fortran_cloud"
+## )
