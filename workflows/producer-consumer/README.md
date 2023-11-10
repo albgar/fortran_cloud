@@ -3,4 +3,5 @@ using ZeroMQ.
 
 Use `run-simple.sh > LOG &` or similar to run.
 
-If you have HyperQueue you can use ...
+If you have HyperQueue you can use `do-hq.sh` or similar.
+
