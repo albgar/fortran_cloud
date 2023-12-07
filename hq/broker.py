@@ -1,16 +1,19 @@
 import zmq
+import socket
 
-
-def run_job(data):
+def run_job(result_addr, data):
     print("JOB")
     context = zmq.Context()
     socket = context.socket(zmq.REQ)
-    socket.connect("tcp://localhost:3446")
+    print("SENDING TO CONSUMER")
+    socket.connect("tcp://localhost:5000")
     socket.send_multipart(data)
+    print("RECEIVING FROM CONSUMER")
     response = socket.recv_multipart()
     socket.close()
+    print("SENDING RESULT BACK TO BROKER")
     socket = context.socket(zmq.DEALER)
-    socket.connect("tcp://localhost:3447")
+    socket.connect(result_addr)
     socket.send_multipart(response)
     print("JOB DONE")
 
@@ -18,7 +21,8 @@ def main():
     import hyperqueue as hq
     from hyperqueue.task.function import PythonEnv
 
-    client = hq.Client(python_env=PythonEnv(python_bin="/home/spirali/projects/hyperqueue/venv/bin/python"))
+
+    client = hq.Client() # python_env=PythonEnv(python_bin="/home/spirali/projects/hyperqueue/venv/bin/python"))
 
     context = zmq.Context()
     user_socket = context.socket(zmq.ROUTER)
@@ -27,9 +31,13 @@ def main():
     result_socket = context.socket(zmq.DEALER)
     result_socket.bind("tcp://*:3447")
 
+    result_addr = f"tcp://{socket.gethostname()}:3447"
+
     poller = zmq.Poller()
     poller.register(user_socket, zmq.POLLIN)
     poller.register(result_socket, zmq.POLLIN)
+
+    print("Result address", result_addr)
 
     while True:
         ready = dict(poller.poll())
@@ -40,7 +48,8 @@ def main():
                 #import multiprocessing
                 #multiprocessing.Process(target=run_job, args=[message]).start()
                 job = hq.Job()
-                job.function(run_job, args=[message])
+                resources = hq.job.ResourceRequest(resources={"consumers": 1})
+                job.function(run_job, args=[result_addr, message], resources=resources)
                 client.submit(job)
         if ready.get(result_socket) == zmq.POLLIN:
             print("RESENDING RESULT")
