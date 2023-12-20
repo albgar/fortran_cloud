@@ -6,8 +6,8 @@ program test
 
    type(zeromq_ctx) :: ctx
    REAL(kind=c_double), allocatable :: data(:, :)
-   integer(kind=c_int) :: key
-   integer :: i, j, tag, recv
+
+   integer :: i, j, tag
 
    open(unit=2, file="results.dat", form="formatted", status="unknown", &
         position="rewind",action="write")
@@ -30,11 +30,13 @@ program test
       write (6, *) " -- done"
       call flush(6)
 
-      ! This is meant
-      ! to recover the results from the workers
-      ! As it is, the check is done once per outer iteration
-      ! I do not understand why we need a loop
-      do
+      !--------------------------------------------------
+      check_results: block
+        integer :: recv
+
+      ! This is meant to recover the results from the workers As it
+      ! is, the check is done once per outer iteration
+
          call zeromq_ctx_try_to_recv(ctx, data, tag, recv)
          
          if (recv > 0) then
@@ -43,14 +45,17 @@ program test
             call flush(2)
          else
             write (6, *) '... still waiting for results'
-            exit
          endif
-      enddo
-      call flush(6)
+
+         call flush(6)
+         end block check_results
+      !--------------------------------------------------
       
       call sleep(1) ! This is the implicit cost of each producer step
       j = j + 1
 
+      ! Maybe give an upper limit to the number of iterations,
+      ! or catch an external signal 
    enddo
 
    close(2)
