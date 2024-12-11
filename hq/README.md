@@ -39,3 +39,9 @@ python3 broker.py
 # Start producer
 python3 producer.py
 ```
+
+Note that, upon receiving a packet from the producer in its frontend,
+the broker launches a "job" that simply connects to a listening
+consumer (run when the worker starts), and then sends the result to
+the broker's backend.  Just one consumer (identified by its port 5000 in the "job") is really active.
+So, if the producer is fast, there might be a lot of HQ jobs trying to connect to the same consumer...
