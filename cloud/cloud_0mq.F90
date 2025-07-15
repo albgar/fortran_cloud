@@ -332,4 +332,192 @@ contains
       end if
    end subroutine
 
+!
+! Extra routines for debugging support
+!
+!> Introspect packet contents without modifying read position
+   subroutine zeromq_packet_introspect(packet)
+      type(zeromq_packet), intent(in) :: packet
+      integer :: pos, item_count, item_size, i
+      integer :: original_read_pos
+      
+      if (.not. associated(packet%data) .or. packet%data_size == 0) then
+         write(*,*) 'Packet is empty'
+         return
+      endif
+      
+      write(*,*) '=== Packet Introspection ==='
+      write(*,*) 'Total packet size:', packet%data_size, 'bytes'
+      write(*,*) 'Allocated size:', packet%allocated_size, 'bytes'
+      write(*,*) 'Current read position:', packet%read_position
+      write(*,*) ''
+      
+      pos = 1
+      item_count = 0
+      
+      do while (pos + c_sizeof(item_size) - 1 <= packet%data_size)
+         ! Read the size header
+         item_size = transfer(packet%data(pos:pos+c_sizeof(item_size)-1), item_size)
+         
+         item_count = item_count + 1
+         write(*,*) 'Item', item_count, ':'
+         write(*,*) '  Position:', pos
+         write(*,*) '  Header size:', c_sizeof(item_size), 'bytes'
+         write(*,*) '  Data size:', item_size, 'bytes'
+         write(*,*) '  Total item size:', item_size + c_sizeof(item_size), 'bytes'
+         
+         ! Move to next item
+         pos = pos + c_sizeof(item_size) + item_size
+         
+         ! Safety check
+         if (pos > packet%data_size + 1) then
+            write(*,*) '  ERROR: Item extends beyond packet boundary!'
+            exit
+         endif
+      end do
+      
+      write(*,*) ''
+      write(*,*) 'Total items found:', item_count
+      write(*,*) 'Bytes accounted for:', pos - 1
+      
+      if (pos - 1 /= packet%data_size) then
+         write(*,*) 'WARNING: Size mismatch! Expected:', packet%data_size, 'Got:', pos - 1
+      endif
+      
+      write(*,*) '=========================='
+   end subroutine
+
+   !> Get summary statistics about packet contents
+   subroutine zeromq_packet_summary(packet, num_items, total_data_bytes, total_header_bytes)
+      type(zeromq_packet), intent(in) :: packet
+      integer, intent(out) :: num_items, total_data_bytes, total_header_bytes
+      integer :: pos, item_size
+      
+      num_items = 0
+      total_data_bytes = 0
+      total_header_bytes = 0
+      
+      if (.not. associated(packet%data) .or. packet%data_size == 0) then
+         return
+      endif
+      
+      pos = 1
+      do while (pos + c_sizeof(item_size) - 1 <= packet%data_size)
+         ! Read the size header
+         item_size = transfer(packet%data(pos:pos+c_sizeof(item_size)-1), item_size)
+         
+         num_items = num_items + 1
+         total_header_bytes = total_header_bytes + c_sizeof(item_size)
+         total_data_bytes = total_data_bytes + item_size
+         
+         ! Move to next item
+         pos = pos + c_sizeof(item_size) + item_size
+         
+         ! Safety check
+         if (pos > packet%data_size + 1) then
+            exit
+         endif
+      end do
+   end subroutine
+
+   !> Validate packet structure
+   logical function zeromq_packet_validate(packet)
+      type(zeromq_packet), intent(in) :: packet
+      integer :: pos, item_size, item_count
+      
+      zeromq_packet_validate = .false.
+      
+      if (.not. associated(packet%data)) then
+         if (packet%data_size == 0) then
+            zeromq_packet_validate = .true.  ! Empty packet is valid
+         endif
+         return
+      endif
+      
+      if (packet%data_size < 0 .or. packet%data_size > packet%allocated_size) then
+         return
+      endif
+      
+      if (packet%read_position < 1) then
+         return
+      endif
+      
+      pos = 1
+      item_count = 0
+      
+      do while (pos <= packet%data_size)
+         ! Check if we have enough space for a size header
+         if (pos + c_sizeof(item_size) - 1 > packet%data_size) then
+            return  ! Incomplete header
+         endif
+         
+         ! Read the size header
+         item_size = transfer(packet%data(pos:pos+c_sizeof(item_size)-1), item_size)
+         
+         ! Check for reasonable size
+         if (item_size < 0 .or. item_size > packet%data_size) then
+            return  ! Invalid size
+         endif
+         
+         item_count = item_count + 1
+         
+         ! Check if we have enough space for the data
+         if (pos + c_sizeof(item_size) + item_size - 1 > packet%data_size) then
+            return  ! Incomplete data
+         endif
+         
+         ! Move to next item
+         pos = pos + c_sizeof(item_size) + item_size
+      end do
+      
+      ! Should end exactly at the end of the packet
+      zeromq_packet_validate = (pos - 1 == packet%data_size)
+   end function
+
+   !> Print packet contents in hex dump style (for debugging)
+   subroutine zeromq_packet_hexdump(packet, max_bytes)
+      type(zeromq_packet), intent(in) :: packet
+      integer, intent(in), optional :: max_bytes
+      integer :: limit, i, j, start_pos
+      character(len=2) :: hex_byte
+      character(len=16) :: ascii_line
+      
+      if (.not. associated(packet%data) .or. packet%data_size == 0) then
+         write(*,*) 'Packet is empty'
+         return
+      endif
+      
+      limit = packet%data_size
+      if (present(max_bytes)) then
+         limit = min(limit, max_bytes)
+      endif
+      
+      write(*,*) '=== Packet Hex Dump (first', limit, 'bytes) ==='
+      
+      do i = 1, limit, 16
+         write(*,'(A,I6.6,A)', advance='no') 'Offset ', i-1, ': '
+         
+         ! Print hex bytes
+         ascii_line = ''
+         do j = 0, 15
+            if (i + j <= limit) then
+               write(hex_byte, '(Z2.2)') ichar(packet%data(i + j))
+               write(*,'(A,A)', advance='no') hex_byte, ' '
+               
+               ! Build ASCII representation
+               if (ichar(packet%data(i + j)) >= 32 .and. ichar(packet%data(i + j)) <= 126) then
+                  ascii_line(j+1:j+1) = packet%data(i + j)
+               else
+                  ascii_line(j+1:j+1) = '.'
+               endif
+            else
+               write(*,'(A)', advance='no') '   '
+            endif
+         end do
+         
+         write(*,'(A,A)') ' | ', trim(ascii_line)
+      end do
+      
+      write(*,*) '===================='
+   end subroutine
 end module

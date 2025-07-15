@@ -66,6 +66,7 @@ target_include_directories(${PROJECT_NAME}
                            INTERFACE
                            ${CMAKE_CURRENT_BINARY_DIR})
 
+add_subdirectory(test)
 add_subdirectory(workflows/producer-consumer)
 add_subdirectory(workflows/prdcon-packet)
 
