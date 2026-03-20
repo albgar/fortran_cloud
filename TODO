@@ -1,0 +1,8 @@
+Things to try:
+
+- A full-featured and realistic test of a producer code sending packets to a consumer/analyzer.
+- Explore MPI issues (i.e. how to send MPI-distributed data)
+- SIESTA:
+   * Forces server
+   * Time/resources snippet register
+   
